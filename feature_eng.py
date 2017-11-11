@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import time
 import math
+from hanziconv import HanziConv
+
 def as_minutes(s):
     m = math.floor(s / 60)
     s -= m * 60
@@ -25,12 +27,14 @@ emb = {}
 song_info = pd.read_csv('data/songs.csv')
 user_info = pd.read_csv('data/members.csv')
 train_data = pd.read_csv('data/train.csv')
-from hanziconv import HanziConv
+
 
 def str_clean(s):
-    s = str(s).lower()
-    s = HanziConv.toTraditional(s)
+    s = str(s).lower().strip()
+    s = HanziConv.toSimplified(s)
     return s
+
+
 def build_song_vocab_embedding():
     # song_length = song_info['song_length'].astype('category') # need to divide into ranges
 
@@ -151,22 +155,24 @@ def build_user_vocab_embedding():
 
 def build_sentence():
     train_sent = []
-    start = time.time()
+
+    print('Building user dictionary...')
     # build dictionary first
     user_info_dict = {}
     for idx, user in user_info.iterrows():
         user_info_dict[user['msno']] = {'city': user['city'], 'gender': user['gender'],
                                         'registered_via': user['registered_via']}
-
+    print('Building song dictionary...')
     song_info_dict = {}
     for idx, song in song_info.iterrows():
         song_info_dict[song['song_id']] = {'artist_name': song['artist_name'], 'genre_ids': song['genre_ids'],
                                            'composer': song['composer'], 'lyricist': song['lyricist'],
                                            'language': song['language']}
-    #
 
+    print('Building sentences...')
+    start = time.time()
     for idx, meta in train_data.iterrows():
-        if idx % 2000 == 0 and idx > 1:
+        if idx % 10000 == 0 and idx > 1:
             print(idx/len(train_data), time_since(start, idx / len(train_data)))
         sent = []
         user_id = meta['msno']
@@ -183,8 +189,8 @@ def build_sentence():
 
         song_id = meta['song_id']
         if song_id not in song_info_dict:
-            genre = 'genre_' + str_clean(selected_song['genre_ids']).split('|')[0]  # only the first one!
-            artist_name = 'artist_name_ ' + '<UNK>'
+            genre = 'genre_' + '<UNK>'
+            artist_name = 'artist_name_' + '<UNK>'
             composer = 'composer_' + '<UNK>'
             lyricist = 'lyricist_' + '<UNK>'
             language = 'language_' + '<UNK>'
@@ -192,20 +198,57 @@ def build_sentence():
         else:
             selected_song = song_info_dict[song_id]
             genre = 'genre_' + str_clean(selected_song['genre_ids']).split('|')[0]  # only the first one!
-            artist_name = 'artist_name_ ' + str_clean(selected_song['artist_name'])
+            artist_name = 'artist_name_' + str_clean(selected_song['artist_name'])
             composer = 'composer_' + str_clean(selected_song['composer'])
             lyricist = 'lyricist_' + str_clean(selected_song['lyricist'])
             language = 'language_' + str_clean(selected_song['language'])
         sent.extend([genre, artist_name, composer, lyricist, language])
         train_sent.append(sent)
-
+    import pickle
+    with open('train_sent.pkl', 'bw') as f:
+        pickle.dump(train_sent, f)
     return train_sent
+
+def train():
+    VALIDATION_SPLIT = 0.1
+    build_user_vocab_embedding()
+    build_song_vocab_embedding()
+    import pickle
+    with open('train_sent.pkl', 'br') as f:
+        train_sent = pickle.load(f)
+    NUM_VOCAB = len(emb)
+    word2id = {}
+    id2word = {}
+    idx = 0
+    for word in emb:
+        word2id[word] = idx
+        id2word[idx] = word
+        idx += 1
+
+    embedding_matrix = np.zeros((NUM_VOCAB, EMBEDDING_DIMENSION))
+    for i, word in id2word.items():
+        embedding_vector = emb[word]
+        embedding_matrix[i] = embedding_vector
+
+
+    train_target = train_data['target'].tolist()
+    perm = np.random.permutation(len(train_sent))
+    idx_train = perm[:int(len(train_sent) * (1 - VALIDATION_SPLIT))]
+    idx_val = perm[int(len(train_sent) * (1 - VALIDATION_SPLIT)):]
+
+    data_train = [train_sent[x] for x in idx_train]
+    data_val = [train_sent[x] for x in idx_val]
+    label_train = [train_target[x] for x in idx_train]
+    label_val = [train_target[x] for x in idx_val]
+
+    data_train = [[word2id[y] for y in x] for x in data_train]
+    data_val = [[word2id[y] for y in x] for x in data_val]
+
 
 
 if __name__ == '__main__':
     # build_user_vocab_embedding()
     # build_song_vocab_embedding()
     train_sent = build_sentence()
-    import pickle
-    with open('train_sent.pkl', 'bw') as f:
-        pickle.dump(train_sent, f)
+    train()
+
