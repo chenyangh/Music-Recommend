@@ -1,8 +1,16 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 import pandas as pd
 import numpy as np
 import time
 import math
 from hanziconv import HanziConv
+from keras.layers import Dense, Input, LSTM, Embedding, Dropout, Activation, Conv1D, GaussianDropout, Flatten, Merge
+from keras.layers.wrappers import Bidirectional
+from keras.models import Model
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+
+
 
 def as_minutes(s):
     m = math.floor(s / 60)
@@ -19,10 +27,10 @@ def time_since(since, percent):
 
 
 #
-#song_extra_info = pd.read_csv('data/song_extra_info.csv')
+# song_extra_info = pd.read_csv('data/song_extra_info.csv')
 
 
-EMBEDDING_DIMENSION = 500
+EMBEDDING_DIMENSION = 50
 emb = {}
 song_info = pd.read_csv('data/songs.csv')
 user_info = pd.read_csv('data/members.csv')
@@ -211,11 +219,13 @@ def build_sentence():
 
 def train():
     VALIDATION_SPLIT = 0.1
-    build_user_vocab_embedding()
-    build_song_vocab_embedding()
+    num_lstm = 300
+    rate_drop_lstm = 0.2
     import pickle
     with open('train_sent.pkl', 'br') as f:
         train_sent = pickle.load(f)
+    with open('emb.pkl', 'br') as f:
+        emb = pickle.load(f)
     NUM_VOCAB = len(emb)
     word2id = {}
     id2word = {}
@@ -244,11 +254,52 @@ def train():
     data_train = [[word2id[y] for y in x] for x in data_train]
     data_val = [[word2id[y] for y in x] for x in data_val]
 
+    data_train = np.array(data_train)
+    data_val = np.array(data_val)
 
+    print(data_train.shape)
+
+    MAX_SEQUENCE_LENGTH = data_train.shape[1]
+    embedding_layer = Embedding(NUM_VOCAB,
+                                EMBEDDING_DIMENSION,
+                                weights=[embedding_matrix],
+                                input_length=MAX_SEQUENCE_LENGTH,
+                                trainable=True)
+
+    lstm_layer = Bidirectional(LSTM(num_lstm, dropout=rate_drop_lstm, recurrent_dropout=rate_drop_lstm))
+
+
+    input = Input(shape=(MAX_SEQUENCE_LENGTH,), dtype='int32')
+    embedded = embedding_layer(input)
+    rnn = lstm_layer(embedded)
+    rnn = Dense(300, activation='relu')(rnn)
+    preds = Dense(1, activation='sigmoid')(rnn)
+    model = Model(inputs=input, outputs=preds)
+    model.compile(loss='binary_crossentropy',
+                  optimizer='nadam',
+                  metrics=['acc'])
+
+
+    early_stopping = EarlyStopping(monitor='val_loss', patience=3)
+    bst_model_path = 'tmp' + '.h5'
+    model_checkpoint = ModelCheckpoint(bst_model_path, save_best_only=True, save_weights_only=True)
+    model.summary()
+    hist = model.fit(data_train, label_train,
+                     validation_data=(data_val, label_val),
+                     epochs=20, batch_size=128, shuffle=True, \
+                     callbacks=[early_stopping, model_checkpoint])
+
+    model.load_weights(bst_model_path)
+    bst_val_score = min(hist.history['val_loss'])
 
 if __name__ == '__main__':
-    # build_user_vocab_embedding()
-    # build_song_vocab_embedding()
-    train_sent = build_sentence()
+    build_user_vocab_embedding()
+    build_song_vocab_embedding()
+    import pickle
+
+    with open('emb.pkl', 'bw') as f:
+        pickle.dump(emb, f)
+
+    # train_sent = build_sentence()
     train()
 
