@@ -170,22 +170,37 @@ def build_sentence():
             print(idx/len(train_data), time_since(start, idx / len(train_data)))
         sent = []
         user_id = meta['msno']
-        selected_user = user_info_dict[user_id]
-        city = 'city_' + str_clean(selected_user['city'])
-        gender = 'gender_' + str_clean(selected_user['gender'])
-        registered_via = 'registered_via_' + str_clean(selected_user['registered_via'])
+        if user_id not in user_info_dict:
+            city = 'city_' + '<UNK>'
+            gender = 'gender_' + '<UNK>'
+            registered_via = 'registered_via_' + '<UNK>'
+        else:
+            selected_user = user_info_dict[user_id]
+            city = 'city_' + str_clean(selected_user['city'])
+            gender = 'gender_' + str_clean(selected_user['gender'])
+            registered_via = 'registered_via_' + str_clean(selected_user['registered_via'])
         sent.extend([city, gender, registered_via])
 
         song_id = meta['song_id']
-        selected_song = song_info_dict[song_id]
-        genre = 'genre_' + str_clean(selected_song['genre_ids']).split('|')[0]  # only the first one!
-        artist_name = 'artist_name_ ' + str_clean(selected_song['artist_name'])
-        composer = 'composer_' + str_clean(selected_song['composer'])
-        lyricist = 'lyricist_' + str_clean(selected_song['lyricist'])
-        language = 'language_' + str_clean(selected_song['language'])
+        if song_id not in song_info_dict:
+            genre = 'genre_' + str_clean(selected_song['genre_ids']).split('|')[0]  # only the first one!
+            artist_name = 'artist_name_ ' + '<UNK>'
+            composer = 'composer_' + '<UNK>'
+            lyricist = 'lyricist_' + '<UNK>'
+            language = 'language_' + '<UNK>'
+            print('Song: ', song_id, ' doest exist')
+        else:
+            selected_song = song_info_dict[song_id]
+            genre = 'genre_' + str_clean(selected_song['genre_ids']).split('|')[0]  # only the first one!
+            artist_name = 'artist_name_ ' + str_clean(selected_song['artist_name'])
+            composer = 'composer_' + str_clean(selected_song['composer'])
+            lyricist = 'lyricist_' + str_clean(selected_song['lyricist'])
+            language = 'language_' + str_clean(selected_song['language'])
         sent.extend([genre, artist_name, composer, lyricist, language])
         train_sent.append(sent)
+
     return train_sent
+
 
 if __name__ == '__main__':
     # build_user_vocab_embedding()
