@@ -35,7 +35,7 @@ emb = {}
 song_info = pd.read_csv('data/songs.csv')
 user_info = pd.read_csv('data/members.csv')
 train_data = pd.read_csv('data/train.csv')
-
+test_data = pd.read_csv('data/test.csv')
 
 def str_clean(s):
     s = str(s).lower().strip()
@@ -161,7 +161,7 @@ def build_user_vocab_embedding():
     emb['registered_via_' + '<UNK>'] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
 
 
-def build_sentence():
+def build_sentence(data, mode):
     train_sent = []
 
     print('Building user dictionary...')
@@ -179,9 +179,9 @@ def build_sentence():
 
     print('Building sentences...')
     start = time.time()
-    for idx, meta in train_data.iterrows():
-        if idx % 10000 == 0 and idx > 1:
-            print(idx/len(train_data), time_since(start, idx / len(train_data)))
+    for idx, meta in data.iterrows():
+        if idx % 100000 == 0 and idx > 1:
+            print(idx/len(data), time_since(start, idx / len(data)))
         sent = []
         user_id = meta['msno']
         if user_id not in user_info_dict:
@@ -210,22 +210,25 @@ def build_sentence():
             composer = 'composer_' + str_clean(selected_song['composer'])
             lyricist = 'lyricist_' + str_clean(selected_song['lyricist'])
             language = 'language_' + str_clean(selected_song['language'])
-        sent.extend([genre, artist_name, composer, lyricist, language])
+        sent.extend([genre, artist_name, composer, lyricist, language])  #
         train_sent.append(sent)
     import pickle
-    with open('train_sent.pkl', 'bw') as f:
+    with open(mode + '_sent.pkl', 'bw') as f:
         pickle.dump(train_sent, f)
     return train_sent
 
 def train():
     VALIDATION_SPLIT = 0.1
-    num_lstm = 300
+    num_lstm = 500
     rate_drop_lstm = 0.2
     import pickle
     with open('train_sent.pkl', 'br') as f:
         train_sent = pickle.load(f)
     with open('emb.pkl', 'br') as f:
         emb = pickle.load(f)
+    with open('test_sent.pkl', 'br') as f:
+        test_cent = pickle.load(f)
+
     NUM_VOCAB = len(emb)
     word2id = {}
     id2word = {}
@@ -257,6 +260,10 @@ def train():
     data_train = np.array(data_train)
     data_val = np.array(data_val)
 
+
+    data_test = [[word2id[y] for y in x] for x in test_cent]
+    id_test = test_data['id'].tolist()
+
     print(data_train.shape)
 
     MAX_SEQUENCE_LENGTH = data_train.shape[1]
@@ -272,7 +279,7 @@ def train():
     input = Input(shape=(MAX_SEQUENCE_LENGTH,), dtype='int32')
     embedded = embedding_layer(input)
     rnn = lstm_layer(embedded)
-    rnn = Dense(300, activation='relu')(rnn)
+    rnn = Dense(200, activation='relu')(rnn)
     preds = Dense(1, activation='sigmoid')(rnn)
     model = Model(inputs=input, outputs=preds)
     model.compile(loss='binary_crossentropy',
@@ -282,24 +289,29 @@ def train():
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=3)
     bst_model_path = 'tmp' + '.h5'
-    model_checkpoint = ModelCheckpoint(bst_model_path, save_best_only=True, save_weights_only=True)
-    model.summary()
-    hist = model.fit(data_train, label_train,
-                     validation_data=(data_val, label_val),
-                     epochs=20, batch_size=128, shuffle=True, \
-                     callbacks=[early_stopping, model_checkpoint])
+    # model_checkpoint = ModelCheckpoint(bst_model_path, save_best_only=True, save_weights_only=True)
+    # model.summary()
+    # hist = model.fit(data_train, label_train,
+    #                  validation_data=(data_val, label_val),
+    #                  epochs=20, batch_size=128, shuffle=True, \
+    #                  callbacks=[early_stopping, model_checkpoint])
+    # bst_val_score = min(hist.history['val_loss'])
+
 
     model.load_weights(bst_model_path)
-    bst_val_score = min(hist.history['val_loss'])
+    model.predict(data_test, batch_size=128, verbose=1)
+    submission = pd.DataFrame({'test_id': id_test, 'target': preds.ravel()})
+    submission.to_csv('submit.csv', index=True)
+
 
 if __name__ == '__main__':
     build_user_vocab_embedding()
     build_song_vocab_embedding()
     import pickle
-
     with open('emb.pkl', 'bw') as f:
         pickle.dump(emb, f)
 
-    # train_sent = build_sentence()
+    # train_sent = build_sentence(train_data, 'train')
+    # test_sent = build_sentence(test_data, 'test')
     train()
 
