@@ -219,7 +219,7 @@ def build_sentence(data, mode):
 
 def train():
     VALIDATION_SPLIT = 0.1
-    num_lstm = 500
+    num_lstm = 300
     rate_drop_lstm = 0.2
     import pickle
     with open('train_sent.pkl', 'br') as f:
@@ -245,6 +245,8 @@ def train():
 
 
     train_target = train_data['target'].tolist()
+
+
     perm = np.random.permutation(len(train_sent))
     idx_train = perm[:int(len(train_sent) * (1 - VALIDATION_SPLIT))]
     idx_val = perm[int(len(train_sent) * (1 - VALIDATION_SPLIT)):]
@@ -279,37 +281,36 @@ def train():
     input = Input(shape=(MAX_SEQUENCE_LENGTH,), dtype='int32')
     embedded = embedding_layer(input)
     rnn = lstm_layer(embedded)
-    rnn = Dense(200, activation='relu')(rnn)
+    rnn = Dense(300, activation='relu')(rnn)
     preds = Dense(1, activation='sigmoid')(rnn)
     model = Model(inputs=input, outputs=preds)
-    model.compile(loss='binary_crossentropy',
-                  optimizer='nadam',
-                  metrics=['acc'])
+    model.compile(loss='mean_squared_error',
+                  optimizer='adam')
 
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=3)
     bst_model_path = 'tmp' + '.h5'
-    # model_checkpoint = ModelCheckpoint(bst_model_path, save_best_only=True, save_weights_only=True)
-    # model.summary()
-    # hist = model.fit(data_train, label_train,
-    #                  validation_data=(data_val, label_val),
-    #                  epochs=20, batch_size=128, shuffle=True, \
-    #                  callbacks=[early_stopping, model_checkpoint])
-    # bst_val_score = min(hist.history['val_loss'])
+    model_checkpoint = ModelCheckpoint(bst_model_path, save_best_only=True, save_weights_only=True)
+    model.summary()
+    hist = model.fit(data_train, label_train,
+                     validation_data=(data_val, label_val),
+                     epochs=20, batch_size=128, shuffle=True, \
+                     callbacks=[early_stopping, model_checkpoint])
+    bst_val_score = min(hist.history['val_loss'])
 
 
     model.load_weights(bst_model_path)
-    model.predict(data_test, batch_size=128, verbose=1)
-    submission = pd.DataFrame({'test_id': id_test, 'target': preds.ravel()})
+    pred = model.predict(data_test, batch_size=128, verbose=1)
+    submission = pd.DataFrame({'test_id': id_test, 'target': pred.ravel()})
     submission.to_csv('submit.csv', index=True)
 
 
 if __name__ == '__main__':
-    build_user_vocab_embedding()
-    build_song_vocab_embedding()
-    import pickle
-    with open('emb.pkl', 'bw') as f:
-        pickle.dump(emb, f)
+    # build_user_vocab_embedding()
+    # build_song_vocab_embedding()
+    # import pickle
+    # with open('emb.pkl', 'bw') as f:
+    #     pickle.dump(emb, f)
 
     # train_sent = build_sentence(train_data, 'train')
     # test_sent = build_sentence(test_data, 'test')
