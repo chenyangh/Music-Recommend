@@ -32,10 +32,10 @@ def time_since(since, percent):
 
 EMBEDDING_DIMENSION = 50
 emb = {}
-song_info = pd.read_csv('data/songs.csv')
-user_info = pd.read_csv('data/members.csv')
-train_data = pd.read_csv('data/train.csv')
-test_data = pd.read_csv('data/test.csv')
+song_info = pd.read_csv('../input/songs.csv')
+user_info = pd.read_csv('../input/members.csv')
+train_data = pd.read_csv('../input/train.csv')
+test_data = pd.read_csv('../input/test.csv')
 
 def str_clean(s):
     s = str(s).lower().strip()
@@ -71,40 +71,40 @@ def build_song_vocab_embedding():
     =================================================
     Build vocab for artist_name
     '''
-    song_artist_name = song_info['artist_name']  # need to divide into ranges
-    tmp_dict = set()
-    for s in song_artist_name:
-        s = str_clean(s)
-        if s not in tmp_dict:
-            emb['artist_name_' + s] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
-            tmp_dict.add(s)
-    emb['artist_name_' + '<UNK>'] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
+    # song_artist_name = song_info['artist_name']  # need to divide into ranges
+    # tmp_dict = set()
+    # for s in song_artist_name:
+    #     s = str_clean(s)
+    #     if s not in tmp_dict:
+    #         emb['artist_name_' + s] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
+    #         tmp_dict.add(s)
+    # emb['artist_name_' + '<UNK>'] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
 
     '''
     =================================================
     Build vocab for composer
     '''
-    song_composer = song_info['composer']  # need to divide into ranges
-    tmp_dict = set()
-    for s in song_composer:
-        s = str_clean(s)
-        if s not in tmp_dict:
-            emb['composer_' + s] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
-            tmp_dict.add(s)
-    emb['composer_' + '<UNK>'] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
+    # song_composer = song_info['composer']  # need to divide into ranges
+    # tmp_dict = set()
+    # for s in song_composer:
+    #     s = str_clean(s)
+    #     if s not in tmp_dict:
+    #         emb['composer_' + s] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
+    #         tmp_dict.add(s)
+    # emb['composer_' + '<UNK>'] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
 
     '''
     =================================================
     Build vocab for lyricist
     '''
-    song_lyricist = song_info['lyricist']  # need to divide into ranges
-    tmp_dict = set()
-    for s in song_lyricist:
-        s = str_clean(s)
-        if s not in tmp_dict:
-            emb['lyricist_' + s] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
-            tmp_dict.add(s)
-    emb['lyricist_' + '<UNK>'] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
+    # song_lyricist = song_info['lyricist']  # need to divide into ranges
+    # tmp_dict = set()
+    # for s in song_lyricist:
+    #     s = str_clean(s)
+    #     if s not in tmp_dict:
+    #         emb['lyricist_' + s] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
+    #         tmp_dict.add(s)
+    # emb['lyricist_' + '<UNK>'] = np.random.uniform(-1, 1, EMBEDDING_DIMENSION)
 
     '''
     =================================================

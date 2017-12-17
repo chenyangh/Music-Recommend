@@ -13,12 +13,12 @@ from sklearn.model_selection import train_test_split
 # For example, running this (by clicking run or pressing Shift+Enter) will list the files in the input directory
 
 from subprocess import check_output
-print(check_output(["ls", "data"]).decode("utf8"))
+print(check_output(["ls", "../input"]).decode("utf8"))
 
 # Any results you write to the current directory are saved as output.
 
 print('Loading data...')
-data_path = 'data/'
+data_path = '../input/'
 train = pd.read_csv(data_path + 'train.csv', dtype={'msno' : 'category',
                                                 'source_system_tab' : 'category',
                                                   'source_screen_name' : 'category',
